@@ -125,3 +125,7 @@ DPAPI使用的会话密钥由MasterKey和随机数的HASH推导产生，而Maste
 	应用程序内置RSA的证书公钥，和私钥加密后的密文，在使用时使用公钥解密数据得到用户密码。
 - 或者以上的组合
 
+### 附录
+- 一个很好的[DPAPI加解密工具](https://www.nirsoft.net/utils/dpapi_data_decryptor.html)
+- [微软参考资料](https://msdn.microsoft.com/en-us/library/ms995355.aspx)
+
