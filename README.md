@@ -95,6 +95,7 @@ DPAPI使用的会话密钥由MasterKey和随机数的HASH推导产生，而Maste
 	![encrypt_data4](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data4.png)
 	
 	- 输入错误的用户密码提示
+	
 	![encrypt_data5](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data5.png)
 	
 
