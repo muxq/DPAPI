@@ -60,7 +60,7 @@ bool EncryptData(const byte *cbDataIn, const int nLen, const byte *key, const in
 	promp.szPrompt  = L"测试加密";
 	promp.dwPromptFlags = CRYPTPROTECT_PROMPT_ON_PROTECT;
 	promp.hwndApp = NULL;
-	if(!CryptProtectData(&DataIn, L"测试加密", key ? &BlobKey:NULL, NULL, &promp, 0, &DataOut))
+	if(!CryptProtectData(&DataIn, L"敏感数据", key ? &BlobKey:NULL, NULL, &promp, 0, &DataOut))
 		return false;
 	*encLen = DataOut.cbData;
 	*encData = malloc(DataOut.cbData);
@@ -69,65 +69,108 @@ bool EncryptData(const byte *cbDataIn, const int nLen, const byte *key, const in
 	return true;
 }
 
-bool DecryptData(const void *encData, const int encLen, const byte *key, const int lenKey, void **cbDataIn, int &nLen)
+bool DecryptData(const void *encData, const int encLen, const byte *key, const int lenKey, void **cbDataIn, int *nLen)
 {
+	if(!encData || 0 == encLen)
+		return false;
+	DATA_BLOB DataIn;
+	DATA_BLOB DataOut;
+	DATA_BLOB BlobKey;
+	LPWSTR pDescrOut =  NULL;
+	if(key)
+	{
+		BlobKey.pbData = const_cast<BYTE *>(key);
+		BlobKey.cbData = lenKey;
+	}
+	DataIn.pbData = (BYTE *)const_cast<void *>(encData);    
+	DataIn.cbData = encLen;
 
-	return false;
+	CRYPTPROTECT_PROMPTSTRUCT promp;
+	promp.cbSize = sizeof(CRYPTPROTECT_PROMPTSTRUCT);
+	promp.szPrompt  = L"测试解密";
+	promp.dwPromptFlags = CRYPTPROTECT_PROMPT_ON_UNPROTECT;
+	promp.hwndApp = NULL;
+
+	if (!CryptUnprotectData(&DataIn, &pDescrOut, key ? &BlobKey:NULL, NULL, &promp, 0, &DataOut))
+		return false;
+	
+	*nLen = DataOut.cbData;
+	*cbDataIn = malloc(DataOut.cbData);
+	memcpy(*cbDataIn, DataOut.pbData, DataOut.cbData);
+	LocalFree(DataOut.pbData);
+	return true;
+}
+
+bool EncryptMemoryData(const byte *cbDataIn, const int nLen, void **encData, int *encLen)
+{
+	if(!cbDataIn || 0 == nLen)
+		return false;
+	DWORD dwMod = nLen % CRYPTPROTECTMEMORY_BLOCK_SIZE;
+	*encLen = nLen;
+	if(dwMod > 0)
+		*encLen = *encLen + (CRYPTPROTECTMEMORY_BLOCK_SIZE - dwMod);	//长度必须是CRYPTPROTECTMEMORY_BLOCK_SIZE的倍数
+	*encData = malloc(*encLen);
+	ZeroMemory(*encData, *encLen);
+	memcpy(*encData, cbDataIn, nLen);
+	return (bool)CryptProtectMemory(*encData, *encLen, CRYPTPROTECTMEMORY_SAME_PROCESS);
+}
+
+bool DecryptMemoryData(byte *cbDataIn, int nLen)
+{
+	if(!cbDataIn || 0 == nLen)
+		return false;
+	return (bool)CryptUnprotectMemory(cbDataIn, nLen, CRYPTPROTECTMEMORY_SAME_PROCESS);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	DATA_BLOB DataIn;
-	DATA_BLOB DataOut;
-	BYTE *pbDataInput =(BYTE *)"你好世界!";
+	//使用CryptProtectData加密要保护的数据原文
+	BYTE *pbDataInput =(BYTE *)"Hello World!";
 	DWORD cbDataInput = strlen((char *)pbDataInput)+1;
 	void *pEncrptData = NULL;
-	int EncryptLen;
-	EncryptData(pbDataInput, cbDataInput, NULL, 0, &pEncrptData, &EncryptLen);
+	int nEncryptLen;
 
-	DATA_BLOB DataVerify;
-	LPWSTR pDescrOut =  NULL;
-	if (CryptUnprotectData(
-		&DataOut,
-		&pDescrOut,
-		NULL,                 // Optional entropy
-		NULL,                 // Reserved
-		NULL,                 // Here, the optional 
-		// prompt structure is not
-		// used.
-		0,
-		&DataVerify))
+	if(!EncryptData(pbDataInput, cbDataInput, NULL, 0, &pEncrptData, &nEncryptLen))
 	{
-		printf("The decrypted data is: %s\n", DataVerify.pbData);
-		printf("The description of the data was: %s\n",pDescrOut);
-	}
-
-	static const int MAX_ORG_DATA_LEN = 128;
-	char *pszOrgData = (char *)malloc(MAX_ORG_DATA_LEN);
-	ZeroMemory(pszOrgData, MAX_ORG_DATA_LEN);
-	strcpy(pszOrgData, "ni hao shi jie!");
-	DWORD dwInData = strlen(pszOrgData) + 1;
-	DWORD dwMod = dwInData % CRYPTPROTECTMEMORY_BLOCK_SIZE;
-	DWORD dwPlainData = dwInData;
-	if(dwMod > 0)
-		dwPlainData = dwInData + (CRYPTPROTECTMEMORY_BLOCK_SIZE - dwMod);
-	if (!CryptProtectMemory(pszOrgData, dwPlainData, CRYPTPROTECTMEMORY_SAME_PROCESS))
-	{
-		free(pszOrgData);
+		fprintf(stderr, "use CryptProtectData encrypt data error!\n");
 		exit(-1);
 	}
+	DumpHex("CryptProtectData", pEncrptData, nEncryptLen);
 
-
-	//  Call CryptUnprotectMemory to decrypt and use the memory.
-	if(!CryptUnprotectMemory(pszOrgData, dwPlainData, CRYPTPROTECTMEMORY_SAME_PROCESS))
+	//使用CryptUnprotectData解密密要保护的数据密文
+	void *pDecryptData = NULL;
+	int nDecryptLen;
+	if(!DecryptData(pEncrptData, nEncryptLen, NULL, 0, &pDecryptData, &nDecryptLen))
 	{
-		free(pszOrgData);
+		fprintf(stderr, "use CryptUnprotectData decrypt encrypt data error!\n");
 		exit(-1);
 	}
-	printf("plain data is %s\n", pszOrgData);
-	SecureZeroMemory(pszOrgData, dwPlainData);
+	DumpHex("CryptUnprotectData", pDecryptData, nDecryptLen);
+	free(pEncrptData);
+	free(pDecryptData);
 
-	printf("%X", DataOut);
+	
+	char *pszOrgData = "ni hao shi jie!";
+	void *pEncrptMemoryData = NULL;
+	int nEncrypMemorytLen;
+	//使用CryptProtectMemory加密内存敏感数据
+	if(!EncryptMemoryData((byte *)pszOrgData, strlen(pszOrgData), &pEncrptMemoryData, &nEncrypMemorytLen))
+	{
+		fprintf(stderr, "use CryptProtectMemory encrypt data error!\n");
+		exit(-1);
+	}
+	DumpHex("CryptProtectMemory", pEncrptMemoryData, nEncrypMemorytLen);
+
+	//使用CryptProtectMemory解密内存加密的敏感数据
+	if(!DecryptMemoryData((byte *)pEncrptMemoryData, nEncrypMemorytLen))
+	{
+		fprintf(stderr, "use CryptUnprotectMemory decrypt encrypt data error!\n");
+		exit(-1);
+	}
+	DumpHex("CryptUnprotectMemory", pEncrptMemoryData, nEncrypMemorytLen);
+
+	free(pEncrptMemoryData);
+	SecureZeroMemory(pEncrptMemoryData, nEncrypMemorytLen);
 	getchar();
 	return 0;
 }
