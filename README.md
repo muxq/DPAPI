@@ -11,6 +11,8 @@ DPAPI使用的会话密钥由MasterKey和随机数的HASH推导产生，而Maste
 
 为了防止篡改MasterKey，它使用HMAC进行散列。DPAPI再次使用SHA-1作为HMAC和用户的密码来派生HMAC密钥。然后使用来自上面的密码派生加密密钥和Triple-DES来加密MasterKey和MasterKey的HMAC。salt和迭代计数都是非秘密值，因此与加密的MasterKey一起存储，但未加密。这允许DPAPI在给定用户密码的情况下轻松解密MasterKey。
 
+![sessionkey](https://github.com/muxq/DPAPI/blob/master/pic/sessionkey.png)
+
 如上图所示，会话密钥的推导使用了MasterKey，随机数，和可选的系统登录密码，用户密码推导生成。16字节的随机数，会以明文的形式存储于加密后的BLOB中，MasterKey是受推导的加密密钥保护。
 
 ### DPAPI密钥备份恢复、
@@ -77,13 +79,23 @@ DPAPI使用的会话密钥由MasterKey和随机数的HASH推导产生，而Maste
 - 交互弹框提示
 	- 加密前提示设置加密等级
 	
+	![encrypt_data1](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data1.png)
+	
 	- 加密等级分类
+	
+	![encrypt_data2](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data2.png)
+	
 	
 	- 加密等级设置为高时输入用户密码
 	
+	![encrypt_data3](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data3.png)
+	
 	- 解密时要求输入用户密码
 	
+	![encrypt_data4](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data4.png)
+	
 	- 输入错误的用户密码提示
+	![encrypt_data5](https://github.com/muxq/DPAPI/blob/master/pic/encrypt_data5.png)
 	
 
 ### Memory加密及优缺点
